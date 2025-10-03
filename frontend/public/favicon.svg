@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="echoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#echoGradient)"/>
+  
+  <!-- Echo waves -->
+  <circle cx="50" cy="50" r="12" fill="white" opacity="1"/>
+  <circle cx="50" cy="50" r="20" fill="none" stroke="white" stroke-width="2" opacity="0.6"/>
+  <circle cx="50" cy="50" r="28" fill="none" stroke="white" stroke-width="2" opacity="0.4"/>
+  <circle cx="50" cy="50" r="36" fill="none" stroke="white" stroke-width="2" opacity="0.2"/>
+</svg>
