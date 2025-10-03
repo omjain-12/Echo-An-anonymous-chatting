@@ -4,8 +4,11 @@
   "description": "Backend server for Echo - Real-time anonymous chat application",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
-    "prod": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   },
   "keywords": [
     "chat",
