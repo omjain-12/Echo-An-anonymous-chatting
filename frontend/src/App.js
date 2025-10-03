@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import Chat from "./components/Chat";
 import ThemeToggle from "./components/ThemeToggle";
+import Logo from "./components/Logo";
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -20,7 +21,10 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Echo</h1>
+        <div className="logo-title">
+          <Logo className="app-logo" />
+          <h1>Echo</h1>
+        </div>
         <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
       </header>
       <Chat />

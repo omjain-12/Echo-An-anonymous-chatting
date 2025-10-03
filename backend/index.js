@@ -26,11 +26,18 @@ const io = new Server(httpServer, {
 const waitingPool = [];
 const userRooms = new Map();
 
+function broadcastUserCount() {
+  const totalUsers = io.engine.clientsCount;
+  io.emit("user_count", { count: totalUsers });
+}
+
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
   waitingPool.push(socket);
   console.log(`Waiting pool size: ${waitingPool.length}`);
+
+  broadcastUserCount();
 
   if (waitingPool.length >= 2) {
     const user1 = waitingPool.shift();
@@ -74,6 +81,21 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("typing", (data) => {
+    const { roomId } = data;
+    socket.to(roomId).emit("partner_typing");
+  });
+
+  socket.on("stop_typing", (data) => {
+    const { roomId } = data;
+    socket.to(roomId).emit("partner_stop_typing");
+  });
+
+  socket.on("send_reaction", (data) => {
+    const { roomId, messageIndex, reaction } = data;
+    socket.to(roomId).emit("receive_reaction", { messageIndex, reaction });
+  });
+
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.id}`);
 
@@ -90,6 +112,8 @@ io.on("connection", (socket) => {
       waitingPool.splice(waitingIndex, 1);
       console.log(`Removed from waiting pool. New size: ${waitingPool.length}`);
     }
+
+    broadcastUserCount();
   });
 });
 
