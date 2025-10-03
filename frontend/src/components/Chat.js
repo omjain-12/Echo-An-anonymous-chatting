@@ -26,7 +26,6 @@ function Chat() {
   const [messagesSent, setMessagesSent] = useState(0);
   const [messagesReceived, setMessagesReceived] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
-  const inputRef = useRef(null);
   const [notificationSound] = useState(
     new Audio(
       "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSt9y/LaizsIEmWy6+yjWRQKTKXh8bllHAU2jdXzzn0xBSd5yPDejj4KE1616+uoVhMKR5/f8sFxJAUpfMry3Ik6CBBirunzpVkUCkyj4PG8aB4FNIvU8tGAMwUocMbv45FAQ"
@@ -75,6 +74,7 @@ function Chat() {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatState]);
 
   useEffect(() => {
