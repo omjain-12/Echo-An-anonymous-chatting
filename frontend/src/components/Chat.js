@@ -178,11 +178,7 @@ function Chat() {
   };
 
   return (
-    <div className="app">
-      <div className="app-header">
-        <h1>Echo Chat</h1>
-      </div>
-
+    <>
       {chatState === "SEARCHING" && (
         <div className="chat-container">
           <div className="status-text">🔍 Searching for a partner...</div>
@@ -283,7 +279,7 @@ function Chat() {
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
