@@ -1,0 +1,32 @@
+{
+  "name": "echo-chat-backend",
+  "version": "1.0.0",
+  "description": "Backend server for Echo - Real-time anonymous chat application",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js",
+    "prod": "node index.js"
+  },
+  "keywords": [
+    "chat",
+    "socket.io",
+    "real-time",
+    "anonymous",
+    "websocket",
+    "messaging"
+  ],
+  "author": "Echo Chat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/Echo.git"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
