@@ -2,9 +2,71 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const dotenv = require("dotenv");
+const sdk = require("microsoft-cognitiveservices-speech-sdk");
+
+dotenv.config();
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+app.post("/api/synthesize-speech", (req, res) => {
+  try {
+    const { text } = req.body || {};
+    if (!text || typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({ error: "Missing or invalid 'text'" });
+    }
+    const key = process.env.SPEECH_KEY;
+    const region = process.env.SPEECH_REGION;
+    if (!key || !region) {
+      return res
+        .status(500)
+        .json({ error: "Speech service credentials not configured" });
+    }
+    const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
+    speechConfig.speechSynthesisOutputFormat =
+      sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3;
+    const synthesizer = new sdk.SpeechSynthesizer(speechConfig, null);
+    synthesizer.speakTextAsync(
+      text,
+      (result) => {
+        try {
+          synthesizer.close();
+          if (!result) {
+            return res.status(500).json({ error: "Empty synthesis result" });
+          }
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            const audioData = Buffer.from(result.audioData);
+            if (!audioData || audioData.length === 0) {
+              return res.status(500).json({ error: "No audio data returned" });
+            }
+            res.setHeader("Content-Type", "audio/mpeg");
+            res.setHeader("Content-Length", audioData.length);
+            return res.status(200).end(audioData);
+          }
+          const details = sdk.CancellationDetails.fromResult(result);
+          return res
+            .status(500)
+            .json({ error: details?.errorDetails || "Synthesis canceled" });
+        } catch (err) {
+          return res
+            .status(500)
+            .json({ error: "Error processing synthesis result" });
+        }
+      },
+      (error) => {
+        try {
+          console.error("Speech synthesis error:", error);
+          synthesizer.close();
+        } catch {}
+        return res.status(500).json({ error: "Error synthesizing speech" });
+      }
+    );
+  } catch (e) {
+    console.error("Speech route error:", e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 const httpServer = http.createServer(app);
 
@@ -51,6 +113,7 @@ io.on("connection", (socket) => {
     userRooms.set(user2.id, roomId);
 
     console.log(`Paired users: ${user1.id} and ${user2.id} in room ${roomId}`);
+
     io.to(roomId).emit("chat_started", { roomId });
   }
 

@@ -1,6 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
+import soundOnIcon from "../assets/icons/sound-on.svg";
+import soundOffIcon from "../assets/icons/sound-off.svg";
+import skipIcon from "../assets/icons/skip.svg";
+import clockIcon from "../assets/icons/clock.svg";
+import sentIcon from "../assets/icons/sent.svg";
+import receivedIcon from "../assets/icons/received.svg";
+import userCountIcon from "../assets/icons/user-count.svg";
+import speakerIcon from "../assets/icons/speaker.svg";
+import stopIcon from "../assets/icons/stop.svg";
+import timerIcon from "../assets/icons/timer.svg";
+import paperclipIcon from "../assets/icons/paperclip.svg";
+import emojiIcon from "../assets/icons/emoji.svg";
+import downloadIcon from "../assets/icons/download.svg";
+import copyIcon from "../assets/icons/copy.svg";
+import checkIcon from "../assets/icons/check.svg";
+import linkIcon from "../assets/icons/link.svg";
+import likeIcon from "../assets/icons/like.svg";
+import loveIcon from "../assets/icons/love.svg";
+import laughIcon from "../assets/icons/laugh.svg";
+import statusGood from "../assets/icons/status-good.svg";
+import statusFair from "../assets/icons/status-fair.svg";
+import statusPoor from "../assets/icons/status-poor.svg";
+import chatIcon from "../assets/icons/chat.svg";
+import lockIcon from "../assets/icons/lock.svg";
+import searchIcon from "../assets/icons/search.svg";
 import { io } from "socket.io-client";
-
 const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL || "http://localhost:5001";
 const socket = io(BACKEND_URL);
@@ -9,6 +33,7 @@ function Chat() {
   const [chatState, setChatState] = useState("SEARCHING");
   const [roomId, setRoomId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [speakingMessageIndex, setSpeakingMessageIndex] = useState(null);
   const [currentMessage, setCurrentMessage] = useState("");
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -31,6 +56,10 @@ function Chat() {
       "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSt9y/LaizsIEmWy6+yjWRQKTKXh8bllHAU2jdXzzn0xBSd5yPDejj4KE1616+uoVhMKR5/f8sFxJAUpfMry3Ik6CBBirunzpVkUCkyj4PG8aB4FNIvU8tGAMwUocMbv45FAQ"
     )
   );
+
+  const audioRef = useRef(null);
+  const lastAudioUrlRef = useRef(null);
+  const [ttsLoadingIndex, setTtsLoadingIndex] = useState(null);
 
   const MAX_MESSAGE_LENGTH = 500;
 
@@ -56,9 +85,77 @@ function Chat() {
     "🙏",
     "💪",
   ];
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const speakMessage = async (text, index) => {
+    try {
+      if (!text || !text.trim()) return;
+      if (speakingMessageIndex === index) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        setSpeakingMessageIndex(null);
+        setTtsLoadingIndex(null);
+        return;
+      }
+      if (
+        typeof window !== "undefined" &&
+        window.location.protocol === "https:" &&
+        BACKEND_URL.startsWith("http:")
+      ) {
+        console.warn(
+          "Speech request may be blocked due to mixed content. Use an https BACKEND_URL."
+        );
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      setSpeakingMessageIndex(index);
+      setTtsLoadingIndex(index);
+      const response = await fetch(`${BACKEND_URL}/api/synthesize-speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        mode: "cors",
+      });
+      if (!response.ok) {
+        throw new Error(`TTS endpoint returned ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type") || "audio/mpeg";
+      const arrayBuffer = await response.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: contentType });
+      if (lastAudioUrlRef.current) {
+        URL.revokeObjectURL(lastAudioUrlRef.current);
+        lastAudioUrlRef.current = null;
+      }
+      const url = URL.createObjectURL(blob);
+      lastAudioUrlRef.current = url;
+      if (!audioRef.current) {
+        const el = new Audio();
+        audioRef.current = el;
+      }
+      audioRef.current.src = url;
+      const playPromise = audioRef.current.play();
+      if (playPromise && typeof playPromise.then === "function") {
+        await playPromise;
+      }
+      audioRef.current.onended = () => {
+        setSpeakingMessageIndex(null);
+        setTtsLoadingIndex(null);
+        if (lastAudioUrlRef.current) {
+          URL.revokeObjectURL(lastAudioUrlRef.current);
+          lastAudioUrlRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error("Speech synthesis failed:", error);
+      setSpeakingMessageIndex(null);
+      setTtsLoadingIndex(null);
+    }
   };
 
   useEffect(() => {
@@ -74,7 +171,6 @@ function Chat() {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatState]);
 
   useEffect(() => {
@@ -221,6 +317,18 @@ function Chat() {
       socket.off("receive_reaction");
     };
   }, [notificationSound, isSoundEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (lastAudioUrlRef.current) {
+        URL.revokeObjectURL(lastAudioUrlRef.current);
+        lastAudioUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const sendMessage = (e) => {
     e.preventDefault();
@@ -438,13 +546,13 @@ function Chat() {
   const getConnectionIcon = () => {
     switch (connectionQuality) {
       case "good":
-        return "🟢";
+        return <img src={statusGood} alt="Connected" />;
       case "fair":
-        return "🟡";
+        return <img src={statusFair} alt="Slow connection" />;
       case "poor":
-        return "🔴";
+        return <img src={statusPoor} alt="Poor connection" />;
       default:
-        return "🟢";
+        return <img src={statusGood} alt="Connected" />;
     }
   };
 
@@ -477,26 +585,38 @@ function Chat() {
       {showWelcome && (
         <div className="welcome-overlay">
           <div className="welcome-modal">
-            <h2>Welcome to Echo! 🎉</h2>
+            <h2>
+              Welcome to Echo! <img src={chatIcon} alt="Echo" />
+            </h2>
             <div className="welcome-content">
               <div className="welcome-item">
-                <span className="welcome-icon">💬</span>
+                <span className="welcome-icon">
+                  <img src={chatIcon} alt="Chat" />
+                </span>
                 <p>Chat anonymously with random strangers</p>
               </div>
               <div className="welcome-item">
-                <span className="welcome-icon">📎</span>
+                <span className="welcome-icon">
+                  <img src={paperclipIcon} alt="Attach" />
+                </span>
                 <p>Share files, images, and videos (up to 50MB)</p>
               </div>
               <div className="welcome-item">
-                <span className="welcome-icon">⏭️</span>
+                <span className="welcome-icon">
+                  <img src={skipIcon} alt="Skip" />
+                </span>
                 <p>Press ESC to skip and find a new partner</p>
               </div>
               <div className="welcome-item">
-                <span className="welcome-icon">😊</span>
+                <span className="welcome-icon">
+                  <img src={emojiIcon} alt="Emoji" />
+                </span>
                 <p>Use emoji picker and react to messages</p>
               </div>
               <div className="welcome-item">
-                <span className="welcome-icon">🔒</span>
+                <span className="welcome-icon">
+                  <img src={lockIcon} alt="Safe" />
+                </span>
                 <p>Be respectful and enjoy safe conversations</p>
               </div>
             </div>
@@ -509,9 +629,13 @@ function Chat() {
 
       {chatState === "SEARCHING" && (
         <div className="chat-container">
-          <div className="status-text">🔍 Searching for a partner...</div>
+          <div className="status-text">
+            <img src={searchIcon} alt="Searching" /> Searching for a partner...
+          </div>
           {userCount > 0 && (
-            <div className="user-count">👥 {userCount} users online</div>
+            <div className="user-count">
+              <img src={userCountIcon} alt="Users" /> {userCount} users online
+            </div>
           )}
         </div>
       )}
@@ -524,7 +648,9 @@ function Chat() {
                 {getConnectionIcon()} {getConnectionText()}
               </span>
               {userCount > 0 && (
-                <span className="user-count-small">👥 {userCount}</span>
+                <span className="user-count-small">
+                  <img src={userCountIcon} alt="Users" /> {userCount}
+                </span>
               )}
             </div>
             <div className="header-actions">
@@ -535,26 +661,29 @@ function Chat() {
                   isSoundEnabled ? "Mute notifications" : "Unmute notifications"
                 }
               >
-                {isSoundEnabled ? "🔔" : "🔕"}
+                <img
+                  src={isSoundEnabled ? soundOnIcon : soundOffIcon}
+                  alt={isSoundEnabled ? "Sound on" : "Sound off"}
+                />
               </button>
               <button
                 className="skip-btn"
                 onClick={skipPartner}
                 title="Find new partner (ESC)"
               >
-                ⏭️ Skip
+                <img src={skipIcon} alt="Skip" /> Skip
               </button>
             </div>
           </div>
           <div className="chat-stats">
             <span className="stat-item" title="Chat duration">
-              ⏱️ {formatDuration(chatDuration)}
+              <img src={timerIcon} alt="Timer" /> {formatDuration(chatDuration)}
             </span>
             <span className="stat-item" title="Messages sent">
-              📤 {messagesSent}
+              <img src={sentIcon} alt="Sent" /> {messagesSent}
             </span>
             <span className="stat-item" title="Messages received">
-              📥 {messagesReceived}
+              <img src={receivedIcon} alt="Received" /> {messagesReceived}
             </span>
           </div>
           <div className="message-list">
@@ -565,11 +694,32 @@ function Chat() {
                     <>
                       <span>{detectLinks(msg.text)}</span>
                       <button
+                        className="speak-btn"
+                        onClick={() => speakMessage(msg.text, index)}
+                        title="Read message aloud"
+                      >
+                        {ttsLoadingIndex === index ? (
+                          <img
+                            src={require("../assets/icons/loader.svg")}
+                            alt="Loading"
+                          />
+                        ) : speakingMessageIndex === index ? (
+                          <img src={stopIcon} alt="Stop" />
+                        ) : (
+                          <img src={speakerIcon} alt="Speak" />
+                        )}
+                      </button>
+                      <button
                         className="copy-btn"
                         onClick={() => copyMessage(msg.text, index)}
                         title="Copy message"
                       >
-                        {copiedMessageIndex === index ? "✓" : "📋"}
+                        <img
+                          src={
+                            copiedMessageIndex === index ? checkIcon : copyIcon
+                          }
+                          alt={copiedMessageIndex === index ? "Copied" : "Copy"}
+                        />
                       </button>
                     </>
                   ) : (
@@ -597,7 +747,9 @@ function Chat() {
                         </div>
                       ) : (
                         <div className="file-info">
-                          <span className="file-icon">📎</span>
+                          <span className="file-icon">
+                            <img src={paperclipIcon} alt="File" />
+                          </span>
                           <div className="file-details">
                             <div className="file-name">{msg.fileName}</div>
                             <div className="file-size">
@@ -612,7 +764,7 @@ function Chat() {
                           downloadFile(msg.file, msg.fileName, msg.fileType)
                         }
                       >
-                        ⬇ Download
+                        <img src={downloadIcon} alt="Download" /> Download
                       </button>
                     </div>
                   )}
@@ -628,21 +780,21 @@ function Chat() {
                         onClick={() => reactToMessage(index, "👍")}
                         title="Like"
                       >
-                        👍
+                        <img src={likeIcon} alt="Like" />
                       </button>
                       <button
                         className="react-btn"
                         onClick={() => reactToMessage(index, "❤️")}
                         title="Love"
                       >
-                        ❤️
+                        <img src={loveIcon} alt="Love" />
                       </button>
                       <button
                         className="react-btn"
                         onClick={() => reactToMessage(index, "😂")}
                         title="Laugh"
                       >
-                        😂
+                        <img src={laughIcon} alt="Laugh" />
                       </button>
                     </div>
                   )}
@@ -705,7 +857,7 @@ function Chat() {
               onClick={handleAttachClick}
               title="Attach file (max 50MB)"
             >
-              📎
+              <img src={paperclipIcon} alt="Attach" />
             </button>
             <button
               type="button"
@@ -713,7 +865,7 @@ function Chat() {
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               title="Add emoji"
             >
-              😊
+              <img src={emojiIcon} alt="Emoji" />
             </button>
             <div className="input-wrapper">
               <input
@@ -745,7 +897,7 @@ function Chat() {
 
       {chatState === "DISCONNECTED" && (
         <div className="chat-container">
-          <div className="status-text">😔 Your partner has left the chat</div>
+          <div className="status-text">Your partner has left the chat</div>
           <button className="find-new-btn" onClick={findNewPartner}>
             Find a New Partner
           </button>

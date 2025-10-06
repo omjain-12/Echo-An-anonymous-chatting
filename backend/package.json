@@ -25,9 +25,11 @@
     "url": "https://github.com/yourusername/Echo.git"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.18.2",
-    "socket.io": "^4.6.1",
-    "cors": "^2.8.5"
+    "microsoft-cognitiveservices-speech-sdk": "^1.46.0",
+    "socket.io": "^4.6.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
