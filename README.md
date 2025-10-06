@@ -1,193 +1,166 @@
-# Echo - Real-Time Anonymous Chat App
+# Echo — Anonymous Real‑Time Chat
 
-A modern, real-time anonymous chat application that pairs random strangers for one-on-one conversations. Built with React and Socket.IO.
+Anonymous, one‑to‑one chat with instant pairing, file sharing, reactions, and optional text‑to‑speech playback. Built with React + Socket.IO (frontend) and Express + Socket.IO (backend).
 
-## 🌟 Features
+## ✨ Features
 
-- **Instant Pairing**: Get matched with a random stranger in seconds
-- **Real-Time Messaging**: Lightning-fast message delivery using Socket.IO
-- **Media Sharing**: Share images, videos, and files up to 50MB
-- **Smart Previews**: Inline image/video previews with download capability
-- **Anonymous Chatting**: No registration, no tracking - just chat
-- **Modern UI**: Beautiful dark-themed interface with gradient accents
-- **Responsive Design**: Works seamlessly on desktop and mobile devices
-- **Ephemeral Storage**: All files deleted when chat ends (privacy-first)
+- Instant pairing with a random stranger
+- Real‑time messaging with delivery over WebSockets
+- File sharing up to 50MB (images/videos show inline previews)
+- Reactions and emoji picker
+- Text‑to‑speech for messages (server‑side synthesis)
+- Connection quality indicator and online user count
+- Clean, responsive UI with professional SVG icons
+- No sign‑up; ephemeral, privacy‑first interactions
 
-## 🏗️ Architecture
-
-- **Frontend**: React application with Socket.IO client
-- **Backend**: Node.js/Express server with Socket.IO
-- **Real-Time Communication**: Bidirectional WebSocket connections
-
-## 📁 Project Structure
+## 🧭 Monorepo Layout
 
 ```
-/Echo
-├── /backend          # Node.js/Express Server
-│   ├── index.js      # Server logic & Socket.IO handlers
-│   └── package.json  # Backend dependencies
+Echo/
+├─ backend/                      # Node.js / Express API + Socket.IO
+│  ├─ index.js                   # App bootstrap (Express + Socket.IO)
+│  └─ src/
+│     ├─ routes/
+│     │  └─ tts.js              # POST /api/synthesize-speech (audio bytes)
+│     ├─ services/
+│     │  └─ ttsService.js       # Azure Speech SDK synthesis
+│     └─ sockets/
+│        └─ matchmaking.js      # Pairing, messaging, files, typing, reactions
 │
-└── /frontend         # React App
-    ├── /public
-    └── /src
-        ├── /components
-        │   └── Chat.js     # Main chat component
-        ├── App.js          # App wrapper
-        ├── App.css         # Styling
-        └── index.js        # Entry point
+└─ frontend/                     # React application
+   ├─ public/
+   └─ src/
+      ├─ components/
+      │  └─ Chat.js             # Main chat UI (icons, TTS controls)
+      ├─ assets/
+      │  └─ icons/              # Professional SVG icons
+      ├─ App.js / App.css
+      └─ index.js
 ```
 
-## 🚀 Getting Started
+## ⚙️ Requirements
 
-### Prerequisites
+- Node.js 16+ (LTS recommended)
+- npm 8+
 
-- Node.js (v14 or higher)
-- npm or yarn
+## 🔑 Environment Variables
 
-### Installation & Running
+Backend (backend/.env):
 
-#### 1. Install Backend Dependencies
+```
+SPEECH_KEY=your-azure-cognitive-services-key
+SPEECH_REGION=your-azure-region           # e.g. eastus
+FRONTEND_URL=http://localhost:3000        # for CORS during local dev
+PORT=5001
+```
 
-```bash
+Frontend (frontend/.env):
+
+```
+REACT_APP_BACKEND_URL=http://localhost:5001
+```
+
+Note: In production, ensure BOTH apps use HTTPS to avoid browser mixed‑content blocking (frontend https calling backend http will be blocked).
+
+## ▶️ Run Locally
+
+Windows PowerShell examples below (run in two terminals):
+
+Backend
+
+```powershell
 cd backend
 npm install
+npm run dev   # or: npm start
 ```
 
-#### 2. Install Frontend Dependencies
+Frontend
 
-```bash
+```powershell
 cd frontend
 npm install
-```
-
-#### 3. Start the Backend Server
-
-```bash
-cd backend
 npm start
 ```
 
-The server will start on **http://localhost:5001**
+Defaults
 
-#### 4. Start the Frontend (in a new terminal)
+- API: http://localhost:5001
+- Web: http://localhost:3000
 
-```bash
-cd frontend
-npm start
-```
+## 🔌 API
 
-The React app will open in your browser at **http://localhost:3000**
+POST /api/synthesize-speech
 
-## 🧪 Testing the App
-
-1. Open **http://localhost:3000** in two separate browser windows or tabs
-2. The first window will show "🔍 Searching for a partner..."
-3. When the second window connects, both users will be paired and can start chatting
-4. Send messages back and forth to test the real-time communication
-5. Close one window - the other should display "😔 Your partner has left the chat"
-6. Click "Find a New Partner" to restart the connection
-
-## 🛠️ Technologies Used
-
-### Backend
-
-- **Express.js** - Web framework
-- **Socket.IO** - Real-time bidirectional communication
-- **CORS** - Cross-origin resource sharing
-- **Nodemon** - Auto-restart during development
-
-### Frontend
-
-- **React** - UI library
-- **Socket.IO Client** - WebSocket client
-- **Poppins Font** - Modern typography
+- Body: `{ "text": "Hello world" }`
+- Response: audio/mpeg bytes (MP3)
+- Errors: 400 invalid input, 500 synthesis/config errors
 
 ## 📡 Socket.IO Events
 
-### Client → Server
+Client → Server
 
-- `send_message` - Send a text message to the chat partner
-  - Payload: `{ roomId, message, senderId }`
-- `send_file` - Send a file to the chat partner
-  - Payload: `{ roomId, file, fileName, fileType, fileSize, senderId }`
+- `send_message` → `{ roomId, message, senderId }`
+- `send_file` → `{ roomId, file, fileName, fileType, fileSize, senderId }`
+- `typing` → `{ roomId }`
+- `stop_typing` → `{ roomId }`
+- `send_reaction` → `{ roomId, messageIndex, reaction }`
 
-### Server → Client
+Server → Client
 
-- `chat_started` - Notifies users they've been paired
-  - Payload: `{ roomId }`
-- `receive_message` - Receive a text message from chat partner
-  - Payload: `{ message, senderId }`
-- `receive_file` - Receive a file from chat partner
-  - Payload: `{ file, fileName, fileType, fileSize, senderId }`
-- `file_error` - File upload error (e.g., size exceeded)
-  - Payload: `{ error }`
-- `partner_left` - Partner disconnected from chat
+- `chat_started` → `{ roomId }`
+- `receive_message` → `{ message, senderId }`
+- `receive_file` → `{ file, fileName, fileType, fileSize, senderId }`
+- `file_error` → `{ error }`
+- `partner_typing`
+- `partner_stop_typing`
+- `receive_reaction` → `{ messageIndex, reaction }`
+- `partner_left`
+- `user_count` → `{ count }`
 
-## 🎨 UI States
+## �️ Privacy
 
-The app has three main states:
+- No persistent storage for messages or files
+- Files exist only in memory during the session and are not stored to disk
+- No user registration or personal data collection
 
-1. **SEARCHING** - Looking for a chat partner
-2. **CHATTING** - Active conversation with a partner
-3. **DISCONNECTED** - Partner has left the chat
+## � Deploy
 
-## 🔒 Privacy
+Frontend (Vercel, Netlify, etc.)
 
-- No data is stored or logged permanently
-- All conversations and files are ephemeral (exist only in memory)
-- Files automatically deleted when chat ends or server restarts
-- Complete anonymity - no user accounts or identifiers
-- No file metadata tracking
+- Set `REACT_APP_BACKEND_URL` to your backend HTTPS URL.
 
-## 📎 Media Sharing
+Backend (Render, Railway, Azure, etc.)
 
-- **File Upload**: Click the 📎 button to attach any file
-- **Size Limit**: Maximum 50MB per file
-- **Supported Types**: Images, videos, documents, archives, and more
-- **Smart Previews**:
-  - Images display inline with click-to-download
-  - Videos play directly in chat
-  - Other files show icon with filename and size
-- **Download**: All shared files can be downloaded by clicking the download button
+- Set `SPEECH_KEY`, `SPEECH_REGION`, and optionally `FRONTEND_URL` for CORS.
+- Ensure HTTPS termination is enabled or served behind a proxy.
 
-## 🐛 Known Issues
+## 🧰 Troubleshooting
 
-- None currently! If you find any, please report them.
-
-## 📝 Future Enhancements
-
-- [ ] Add typing indicators
-- [ ] Implement "Next" button to skip current partner
-- [ ] Add emoji picker
-- [ ] Include language preferences
-- [ ] Add reporting/moderation features
-- [ ] Implement chat history (session-only)
-- [ ] File encryption for enhanced privacy
-- [ ] Voice and video calling
-- [ ] Group chat rooms
+- Port already in use (EADDRINUSE):
+  - Stop existing process on port 5001 or set a different `PORT` in backend/.env.
+- Mixed content blocked (TTS not working over HTTPS):
+  - Use an HTTPS backend URL in `REACT_APP_BACKEND_URL` when deploying the frontend over HTTPS.
+- CORS errors:
+  - Ensure `FRONTEND_URL` is set to your deployed frontend origin in backend environment.
+- TTS 500 errors:
+  - Verify `SPEECH_KEY` and `SPEECH_REGION` are correct and the resource is active.
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome!
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+1. Fork the repo
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Commit: `git commit -m "feat: add your feature"`
+4. Push: `git push origin feature/your-feature`
 5. Open a Pull Request
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
-
-## 👨‍💻 Author
-
-Created with ❤️ for anonymous conversations
+MIT © Echo
 
 ## 📸 Screenshots
 
-_Add screenshots of your app here_
+Add screenshots or GIFs here showcasing pairing, chat, file sharing, and TTS.
 
----
+—
 
-**Enjoy chatting anonymously with Echo! 🎭💬**
+Enjoy anonymous conversations with Echo 💬

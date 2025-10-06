@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import soundOnIcon from "../assets/icons/sound-on.svg";
 import soundOffIcon from "../assets/icons/sound-off.svg";
 import skipIcon from "../assets/icons/skip.svg";
-import clockIcon from "../assets/icons/clock.svg";
 import sentIcon from "../assets/icons/sent.svg";
 import receivedIcon from "../assets/icons/received.svg";
 import userCountIcon from "../assets/icons/user-count.svg";
@@ -14,7 +13,6 @@ import emojiIcon from "../assets/icons/emoji.svg";
 import downloadIcon from "../assets/icons/download.svg";
 import copyIcon from "../assets/icons/copy.svg";
 import checkIcon from "../assets/icons/check.svg";
-import linkIcon from "../assets/icons/link.svg";
 import likeIcon from "../assets/icons/like.svg";
 import loveIcon from "../assets/icons/love.svg";
 import laughIcon from "../assets/icons/laugh.svg";
@@ -162,6 +160,15 @@ function Chat() {
     scrollToBottom();
   }, [messages]);
 
+  const skipPartner = useCallback(() => {
+    if (roomId) {
+      socket.disconnect();
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    }
+  }, [roomId]);
+
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.key === "Escape" && chatState === "CHATTING") {
@@ -171,7 +178,7 @@ function Chat() {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [chatState]);
+  }, [chatState, skipPartner]);
 
   useEffect(() => {
     const checkConnection = setInterval(() => {
@@ -468,15 +475,6 @@ function Chat() {
     });
   };
 
-  const skipPartner = () => {
-    if (roomId) {
-      socket.disconnect();
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
-    }
-  };
-
   const findNewPartner = () => {
     window.location.reload();
   };
@@ -702,6 +700,7 @@ function Chat() {
                           <img
                             src={require("../assets/icons/loader.svg")}
                             alt="Loading"
+
                           />
                         ) : speakingMessageIndex === index ? (
                           <img src={stopIcon} alt="Stop" />
